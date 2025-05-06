@@ -10,22 +10,14 @@ services:
       - "443:443"
     volumes:
       - ./nginx/conf.d:/etc/nginx/conf.d
-      - ./nginx/ssl:/etc/nginx/ssl
-      - ./nginx/data/certbot/conf:/etc/letsencrypt
-      - ./nginx/data/certbot/www:/var/www/certbot
     depends_on:
       - client
       - server
     networks:
       - mern-network
-
-  certbot:
-    image: certbot/certbot
-    container_name: certbot
-    volumes:
-      - ./nginx/data/certbot/conf:/etc/letsencrypt
-      - ./nginx/data/certbot/www:/var/www/certbot
-    command: renew
+    extra_hosts:
+      - "firewall:192.168.100.90"
+      - "waf:192.168.20.13"
 
   mongodb:
     image: mongo:latest

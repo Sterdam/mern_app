@@ -1,0 +1,11 @@
+FROM alpine:latest
+
+WORKDIR /app
+
+# Create a simple API response
+RUN echo '#!/bin/sh\necho "Content-Type: application/json\n\n{\"status\":\"ok\",\"message\":\"API server running in local mode\"}"' > /app/server.sh
+RUN chmod +x /app/server.sh
+
+EXPOSE 5000
+
+CMD ["sh", "-c", "echo 'Server running on port 5000'; while true; do nc -l -p 5000 -e /app/server.sh; done"]

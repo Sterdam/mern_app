@@ -1,0 +1,11 @@
+FROM alpine:latest
+
+WORKDIR /app
+
+# Create a simple static HTML
+RUN mkdir -p /usr/share/nginx/html
+RUN echo '<html><head><title>Image App</title></head><body><h1>Image App Client</h1><p>Backend mode only - please use the API directly.</p></body></html>' > /usr/share/nginx/html/index.html
+
+EXPOSE 80
+
+CMD ["echo", "Client container running in local mode"]

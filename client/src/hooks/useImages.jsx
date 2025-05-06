@@ -7,12 +7,15 @@ export const useImages = () => {
   const [userImages, setUserImages] = useState([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
+  
+  // Base API URL - get from environment or use default
+  const API_URL = '/api';
 
   // Get all images
   const getAllImages = async () => {
     setLoading(true);
     try {
-      const res = await axios.get('/api/images/all');
+      const res = await axios.get(`${API_URL}/images/all`);
       setImages(res.data);
       return res.data;
     } catch (err) {
@@ -27,7 +30,7 @@ export const useImages = () => {
   const getUserImages = async () => {
     setLoading(true);
     try {
-      const res = await axios.get('/api/images/user');
+      const res = await axios.get(`${API_URL}/images/user`);
       setUserImages(res.data);
       return res.data;
     } catch (err) {
@@ -42,7 +45,7 @@ export const useImages = () => {
   const uploadImage = async (formData) => {
     setLoading(true);
     try {
-      const res = await axios.post('/api/images', formData, {
+      const res = await axios.post(`${API_URL}/images`, formData, {
         headers: {
           'Content-Type': 'multipart/form-data',
         },
@@ -63,7 +66,7 @@ export const useImages = () => {
   // Delete image
   const deleteImage = async (id) => {
     try {
-      await axios.delete(`/api/images/${id}`);
+      await axios.delete(`${API_URL}/images/${id}`);
       setUserImages(userImages.filter(image => image._id !== id));
       setImages(images.filter(image => image._id !== id));
       toast.success('Image deleted successfully');

@@ -5,6 +5,20 @@ const ImageCard = ({ image, onDelete }) => {
   const { user } = useAuth();
   const [showDetails, setShowDetails] = useState(false);
 
+  // Ensure the image URL has the correct base path
+  const getFullImageUrl = (url) => {
+    // If the URL already begins with http:// or https://, it's already a full URL
+    if (url.startsWith('http://') || url.startsWith('https://')) {
+      return url;
+    }
+    
+    // If the URL is relative (e.g., /uploads/filename.jpg), ensure it has the correct path
+    if (!url.startsWith('/')) {
+      return `/${url}`;
+    }
+    return url;
+  };
+
   const toggleDetails = () => {
     setShowDetails(!showDetails);
   };
@@ -13,7 +27,7 @@ const ImageCard = ({ image, onDelete }) => {
     <div className="bg-white rounded-lg shadow-md overflow-hidden">
       <div className="relative">
         <img 
-          src={image.imageUrl} 
+          src={getFullImageUrl(image.imageUrl)} 
           alt={image.title} 
           className="w-full h-48 object-cover cursor-pointer" 
           onClick={toggleDetails}

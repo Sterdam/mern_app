@@ -9,6 +9,16 @@ export default defineConfig({
     port: 5173,
     watch: {
       usePolling: true
+    },
+    proxy: {
+      '/api': {
+        target: 'http://server:5000',
+        changeOrigin: true
+      },
+      '/uploads': {
+        target: 'http://server:5000',
+        changeOrigin: true
+      }
     }
   }
 })
