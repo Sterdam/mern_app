@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../hooks/useAuth';
 import { toast } from 'react-toastify';
+import DOMPurify from 'dompurify';
 
 const Login = () => {
   const [formData, setFormData] = useState({
@@ -19,12 +20,30 @@ const Login = () => {
     });
   };
 
+  const validateEmail = (email) => {
+    const emailRegex = /^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/;
+    return emailRegex.test(email);
+  };
+
   const handleSubmit = async (e) => {
     e.preventDefault();
+    
+    // Basic validation
+    if (!validateEmail(formData.email)) {
+      toast.error('Please enter a valid email address');
+      return;
+    }
+    
     setIsLoading(true);
 
     try {
-      await login(formData);
+      // Sanitize inputs
+      const sanitizedData = {
+        email: DOMPurify.sanitize(formData.email),
+        password: formData.password // Don't sanitize passwords
+      };
+      
+      await login(sanitizedData);
       toast.success('Login successful!');
       navigate('/');
     } catch (error) {
@@ -48,6 +67,8 @@ const Login = () => {
             onChange={handleChange}
             required
             className="input"
+            pattern="[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$"
+            title="Please enter a valid email address"
           />
         </div>
         <div className="mb-6">
@@ -60,6 +81,7 @@ const Login = () => {
             onChange={handleChange}
             required
             className="input"
+            minLength="8"
           />
         </div>
         <button

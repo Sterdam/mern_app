@@ -14,11 +14,26 @@ export const uploadImage = async (req, res) => {
     }
 
     const { title, description } = req.body;
+    
+    // Validate title (required field)
+    if (!title || title.trim() === '') {
+      // Delete the uploaded file if validation fails
+      const filePath = path.join(__dirname, '..', 'uploads', req.file.filename);
+      if (fs.existsSync(filePath)) {
+        fs.unlinkSync(filePath);
+      }
+      return res.status(400).json({ message: 'Title is required' });
+    }
+    
+    // Sanitize inputs
+    const sanitizedTitle = title.trim();
+    const sanitizedDescription = description ? description.trim() : '';
+    
     const imageUrl = `/uploads/${req.file.filename}`;
 
     const newImage = new Image({
-      title,
-      description,
+      title: sanitizedTitle,
+      description: sanitizedDescription,
       imageUrl,
       user: req.user
     });
@@ -27,6 +42,13 @@ export const uploadImage = async (req, res) => {
 
     res.status(201).json(savedImage);
   } catch (error) {
+    // If an error occurs, clean up the uploaded file
+    if (req.file) {
+      const filePath = path.join(__dirname, '..', 'uploads', req.file.filename);
+      if (fs.existsSync(filePath)) {
+        fs.unlinkSync(filePath);
+      }
+    }
     res.status(500).json({ message: error.message });
   }
 };
@@ -54,6 +76,11 @@ export const getUserImages = async (req, res) => {
 // Get single image
 export const getImage = async (req, res) => {
   try {
+    // Validate MongoDB ObjectId format
+    if (!req.params.id.match(/^[0-9a-fA-F]{24}$/)) {
+      return res.status(400).json({ message: 'Invalid image ID format' });
+    }
+    
     const image = await Image.findById(req.params.id).populate('user', 'username');
     if (!image) {
       return res.status(404).json({ message: 'Image not found' });
@@ -67,6 +94,11 @@ export const getImage = async (req, res) => {
 // Delete image
 export const deleteImage = async (req, res) => {
   try {
+    // Validate MongoDB ObjectId format
+    if (!req.params.id.match(/^[0-9a-fA-F]{24}$/)) {
+      return res.status(400).json({ message: 'Invalid image ID format' });
+    }
+    
     const image = await Image.findById(req.params.id);
     
     if (!image) {

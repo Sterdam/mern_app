@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../hooks/useAuth';
 import { toast } from 'react-toastify';
+import DOMPurify from 'dompurify';
 
 const Register = () => {
   const [formData, setFormData] = useState({
@@ -21,25 +22,58 @@ const Register = () => {
     });
   };
 
+  // Validation functions
+  const validateEmail = (email) => {
+    const emailRegex = /^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/;
+    return emailRegex.test(email);
+  };
+
+  const validateUsername = (username) => {
+    const usernameRegex = /^[a-zA-Z0-9_]{3,30}$/;
+    return usernameRegex.test(username);
+  };
+
+  const validatePassword = (password) => {
+    // At least 8 chars, one uppercase, one lowercase, one number
+    const passwordRegex = /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d).{8,}$/;
+    return passwordRegex.test(password);
+  };
+
   const handleSubmit = async (e) => {
     e.preventDefault();
+    
+    // Form validation
+    if (!validateUsername(formData.username)) {
+      toast.error('Username must be 3-30 characters and contain only letters, numbers, and underscores');
+      return;
+    }
+    
+    if (!validateEmail(formData.email)) {
+      toast.error('Please enter a valid email address');
+      return;
+    }
+    
+    if (!validatePassword(formData.password)) {
+      toast.error('Password must be at least 8 characters and include uppercase, lowercase, and numbers');
+      return;
+    }
     
     if (formData.password !== formData.confirmPassword) {
       toast.error('Passwords do not match');
       return;
     }
 
-    if (formData.password.length < 6) {
-      toast.error('Password must be at least 6 characters');
-      return;
-    }
-
     setIsLoading(true);
 
     try {
-      // Remove confirmPassword before sending
-      const { confirmPassword, ...registerData } = formData;
-      await register(registerData);
+      // Sanitize inputs
+      const sanitizedData = {
+        username: DOMPurify.sanitize(formData.username),
+        email: DOMPurify.sanitize(formData.email),
+        password: formData.password, // Don't sanitize passwords
+      };
+      
+      await register(sanitizedData);
       toast.success('Registration successful!');
       navigate('/');
     } catch (error) {
@@ -63,7 +97,10 @@ const Register = () => {
             onChange={handleChange}
             required
             className="input"
+            pattern="^[a-zA-Z0-9_]{3,30}$"
+            title="Username must be 3-30 characters and contain only letters, numbers, and underscores"
             minLength="3"
+            maxLength="30"
           />
         </div>
         <div className="mb-4">
@@ -76,6 +113,8 @@ const Register = () => {
             onChange={handleChange}
             required
             className="input"
+            pattern="[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$"
+            title="Please enter a valid email address"
           />
         </div>
         <div className="mb-4">
@@ -88,8 +127,12 @@ const Register = () => {
             onChange={handleChange}
             required
             className="input"
-            minLength="6"
+            minLength="8"
+            title="Password must be at least 8 characters and include uppercase, lowercase, and numbers"
           />
+          <p className="text-xs text-gray-500 mt-1">
+            Must be at least 8 characters with uppercase, lowercase, and numbers
+          </p>
         </div>
         <div className="mb-6">
           <label htmlFor="confirmPassword" className="block text-gray-700 mb-2">Confirm Password</label>
@@ -101,7 +144,7 @@ const Register = () => {
             onChange={handleChange}
             required
             className="input"
-            minLength="6"
+            minLength="8"
           />
         </div>
         <button

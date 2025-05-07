@@ -10,6 +10,7 @@ services:
       - "443:443"
     volumes:
       - ./nginx/conf.d:/etc/nginx/conf.d
+      - ./nginx/logs:/var/log/nginx
     depends_on:
       - client
       - server
@@ -18,20 +19,46 @@ services:
     extra_hosts:
       - "firewall:192.168.100.90"
       - "waf:192.168.20.13"
+    # Security enhancements
+    cap_drop:
+      - ALL
+    cap_add:
+      - NET_BIND_SERVICE
+      - DAC_OVERRIDE
+    security_opt:
+      - no-new-privileges:true
+    healthcheck:
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
 
   mongodb:
     image: mongo:latest
     container_name: mongodb
     restart: always
     ports:
-      - "27017:27017"
+      - "27017:27017" # Keeping this exposed as in your original config
     volumes:
       - mongo_data:/data/db
     networks:
       - mern-network
     environment:
-      MONGO_INITDB_ROOT_USERNAME: ${MONGO_USERNAME}
-      MONGO_INITDB_ROOT_PASSWORD: ${MONGO_PASSWORD}
+      MONGO_INITDB_ROOT_USERNAME: admin
+      MONGO_INITDB_ROOT_PASSWORD: password
+    # Security enhancements
+    command: ["--auth", "--bind_ip", "0.0.0.0", "--wiredTigerCacheSizeGB", "0.5"]
+    cap_drop:
+      - ALL
+    cap_add:
+      - DAC_OVERRIDE
+    security_opt:
+      - no-new-privileges:true
+    healthcheck:
+      test: ["CMD", "mongo", "--eval", "db.adminCommand('ping')"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
 
   server:
     build:
@@ -47,6 +74,16 @@ services:
       - mongodb
     networks:
       - mern-network
+    # Security enhancements
+    cap_drop:
+      - ALL
+    security_opt:
+      - no-new-privileges:true
+    healthcheck:
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:5000/api"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
 
   client:
     build:
@@ -58,10 +95,25 @@ services:
       - server
     networks:
       - mern-network
+    # Security enhancements
+    cap_drop:
+      - ALL
+    security_opt:
+      - no-new-privileges:true
+    healthcheck:
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:80"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
 
 networks:
   mern-network:
     driver: bridge
+    # Security enhancements
+    driver_opts:
+      com.docker.network.bridge.name: "mern-net"
+      com.docker.network.bridge.enable_ip_masquerade: "true"
+      com.docker.network.bridge.enable_icc: "true"
 
 volumes:
   mongo_data:

@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useImages } from '../hooks/useImages';
 import { toast } from 'react-toastify';
+import DOMPurify from 'dompurify';
 
 const UploadImage = () => {
   const [formData, setFormData] = useState({
@@ -23,7 +24,23 @@ const UploadImage = () => {
 
   const handleFileChange = (e) => {
     const selectedFile = e.target.files[0];
+    
     if (selectedFile) {
+      // Validate file type
+      const validTypes = ['image/jpeg', 'image/jpg', 'image/png', 'image/gif'];
+      if (!validTypes.includes(selectedFile.type)) {
+        toast.error('Invalid file type. Only JPEG, PNG, and GIF images are allowed.');
+        e.target.value = '';
+        return;
+      }
+      
+      // Validate file size (5MB max)
+      if (selectedFile.size > 5 * 1024 * 1024) {
+        toast.error('File is too large. Maximum size is 5MB.');
+        e.target.value = '';
+        return;
+      }
+      
       setFile(selectedFile);
       
       // Create preview URL
@@ -35,6 +52,10 @@ const UploadImage = () => {
     }
   };
 
+  const validateTitle = (title) => {
+    return title.trim().length > 0 && title.trim().length <= 100;
+  };
+
   const handleSubmit = async (e) => {
     e.preventDefault();
     
@@ -42,13 +63,18 @@ const UploadImage = () => {
       toast.error('Please select an image');
       return;
     }
+    
+    if (!validateTitle(formData.title)) {
+      toast.error('Title is required and must be less than 100 characters');
+      return;
+    }
 
     setIsLoading(true);
 
     try {
       const data = new FormData();
-      data.append('title', formData.title);
-      data.append('description', formData.description);
+      data.append('title', DOMPurify.sanitize(formData.title));
+      data.append('description', DOMPurify.sanitize(formData.description || ''));
       data.append('image', file);
 
       await uploadImage(data);
@@ -74,6 +100,7 @@ const UploadImage = () => {
             value={formData.title}
             onChange={handleChange}
             required
+            maxLength="100"
             className="input"
           />
         </div>
@@ -85,6 +112,7 @@ const UploadImage = () => {
             value={formData.description}
             onChange={handleChange}
             className="input h-24"
+            maxLength="500"
           ></textarea>
         </div>
         <div className="mb-6">
@@ -98,6 +126,9 @@ const UploadImage = () => {
             accept="image/jpeg,image/png,image/gif"
             className="w-full p-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
           />
+          <p className="text-xs text-gray-500 mt-1">
+            Accepted formats: JPEG, PNG, GIF. Maximum size: 5MB.
+          </p>
           {preview && (
             <div className="mt-4">
               <img src={preview} alt="Preview" className="w-full max-h-64 object-contain rounded-md" />

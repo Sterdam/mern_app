@@ -5,51 +5,51 @@ export const AuthContext = createContext();
 
 export const AuthProvider = ({ children }) => {
   const [user, setUser] = useState(null);
-  const [token, setToken] = useState(localStorage.getItem('token'));
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
 
   // Set up axios defaults
   axios.defaults.baseURL = '/api';
+  axios.defaults.withCredentials = true; // Important for cookies
 
-  // Set up axios interceptor for authorization headers
-  useEffect(() => {
-    if (token) {
-      axios.defaults.headers.common['Authorization'] = `Bearer ${token}`;
-    } else {
-      delete axios.defaults.headers.common['Authorization'];
+  // Set up CSRF token fetch
+  const fetchCsrfToken = async () => {
+    try {
+      const res = await axios.get('/auth/csrf-token');
+      // The token is set in cookies automatically by the server
+      // and will be sent with subsequent requests
+    } catch (err) {
+      console.error('Error fetching CSRF token:', err);
     }
-  }, [token]);
+  };
 
-  // Load user on initial app load if token exists
+  // Load user on initial app load
   useEffect(() => {
     const loadUser = async () => {
-      if (!token) {
-        setLoading(false);
-        return;
-      }
-
       try {
+        // First get CSRF token
+        await fetchCsrfToken();
+        
+        // Then try to get user data
         const res = await axios.get('/auth/user');
         setUser(res.data);
       } catch (err) {
-        localStorage.removeItem('token');
-        setToken(null);
-        setError(err.response?.data?.message || 'Authentication failed');
+        // Don't show error if just not logged in
+        if (err.response?.status !== 401) {
+          setError(err.response?.data?.message || 'Authentication failed');
+        }
       } finally {
         setLoading(false);
       }
     };
 
     loadUser();
-  }, [token]);
+  }, []);
 
   // Register user
   const register = async (userData) => {
     try {
       const res = await axios.post('/auth/register', userData);
-      localStorage.setItem('token', res.data.token);
-      setToken(res.data.token);
       setUser(res.data.user);
       return res.data;
     } catch (err) {
@@ -62,8 +62,6 @@ export const AuthProvider = ({ children }) => {
   const login = async (userData) => {
     try {
       const res = await axios.post('/auth/login', userData);
-      localStorage.setItem('token', res.data.token);
-      setToken(res.data.token);
       setUser(res.data.user);
       return res.data;
     } catch (err) {
@@ -73,10 +71,13 @@ export const AuthProvider = ({ children }) => {
   };
 
   // Logout user
-  const logout = () => {
-    localStorage.removeItem('token');
-    setToken(null);
-    setUser(null);
+  const logout = async () => {
+    try {
+      await axios.post('/auth/logout');
+      setUser(null);
+    } catch (err) {
+      console.error('Logout error:', err);
+    }
   };
 
   // Clear error
@@ -88,7 +89,6 @@ export const AuthProvider = ({ children }) => {
     <AuthContext.Provider
       value={{
         user,
-        token,
         loading,
         error,
         register,

@@ -2,8 +2,8 @@ import jwt from 'jsonwebtoken';
 
 const auth = (req, res, next) => {
   try {
-    // Get token from header
-    const token = req.header('Authorization')?.replace('Bearer ', '');
+    // Check for token in cookies first (preferred), then in header
+    const token = req.cookies?.token || req.header('Authorization')?.replace('Bearer ', '');
     
     if (!token) {
       return res.status(401).json({ message: 'No authentication token, access denied' });
@@ -13,6 +13,12 @@ const auth = (req, res, next) => {
     const verified = jwt.verify(token, process.env.JWT_SECRET);
     if (!verified) {
       return res.status(401).json({ message: 'Token verification failed, authorization denied' });
+    }
+
+    // Add additional check for token expiry
+    const now = Math.floor(Date.now() / 1000);
+    if (verified.exp && verified.exp < now) {
+      return res.status(401).json({ message: 'Token expired, please login again' });
     }
 
     req.user = verified.id;

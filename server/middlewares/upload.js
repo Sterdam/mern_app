@@ -1,6 +1,7 @@
 import multer from 'multer';
 import path from 'path';
 import { fileURLToPath } from 'url';
+import crypto from 'crypto';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -11,17 +12,25 @@ const storage = multer.diskStorage({
     cb(null, path.join(__dirname, '../uploads'));
   },
   filename: (req, file, cb) => {
-    cb(null, `${Date.now()}-${file.originalname}`);
+    // Generate a secure random filename to prevent path traversal attacks
+    const randomName = crypto.randomBytes(16).toString('hex');
+    const fileExtension = path.extname(file.originalname).toLowerCase();
+    cb(null, `${randomName}${fileExtension}`);
   }
 });
 
 // File filter
 const fileFilter = (req, file, cb) => {
-  // Accept images only
-  if (!file.originalname.match(/\.(jpg|jpeg|png|gif)$/)) {
-    return cb(new Error('Only image files are allowed!'), false);
+  // Accept only specific image types
+  const allowedTypes = /jpeg|jpg|png|gif/;
+  const mimeTypeValid = allowedTypes.test(file.mimetype);
+  const extValid = allowedTypes.test(path.extname(file.originalname).toLowerCase());
+  
+  if (mimeTypeValid && extValid) {
+    return cb(null, true);
   }
-  cb(null, true);
+  
+  cb(new Error('Invalid file type. Only JPEG, JPG, PNG and GIF images are allowed.'), false);
 };
 
 const upload = multer({

@@ -1,11 +1,58 @@
 import bcrypt from 'bcryptjs';
 import jwt from 'jsonwebtoken';
 import User from '../models/User.js';
+import crypto from 'crypto';
+
+// Generate CSRF token
+export const getCsrfToken = (req, res) => {
+  const csrfToken = crypto.randomBytes(20).toString('hex');
+  
+  // Store token in a cookie
+  res.cookie('XSRF-TOKEN', csrfToken, {
+    httpOnly: false, // Must be accessible from JS
+    secure: process.env.NODE_ENV === 'production', 
+    sameSite: 'strict',
+    maxAge: 24 * 60 * 60 * 1000 // 1 day
+  });
+  
+  res.json({ csrfToken });
+};
 
 // Register a new user
 export const register = async (req, res) => {
   try {
     const { username, email, password } = req.body;
+
+    // Input validation
+    if (!username || !email || !password) {
+      return res.status(400).json({ message: 'All fields are required' });
+    }
+    
+    // Validate email format
+    const emailRegex = /^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/;
+    if (!emailRegex.test(email)) {
+      return res.status(400).json({ message: 'Invalid email format' });
+    }
+    
+    // Validate username format
+    const usernameRegex = /^[a-zA-Z0-9_]{3,30}$/;
+    if (!usernameRegex.test(username)) {
+      return res.status(400).json({ 
+        message: 'Username must be 3-30 characters and contain only letters, numbers, and underscores' 
+      });
+    }
+    
+    // Validate password strength
+    if (password.length < 8) {
+      return res.status(400).json({ message: 'Password must be at least 8 characters' });
+    }
+    
+    const passwordRegex = /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)[\w\d@$!%*?&]{8,}$/;
+    if (!passwordRegex.test(password)) {
+      return res.status(400).json({ 
+        message: 'Password must contain at least one uppercase letter, one lowercase letter, and one number' 
+      });
+    }
 
     // Check if user already exists
     const existingUser = await User.findOne({ $or: [{ email }, { username }] });
@@ -30,8 +77,15 @@ export const register = async (req, res) => {
     // Generate JWT token
     const token = jwt.sign({ id: savedUser._id }, process.env.JWT_SECRET, { expiresIn: '1d' });
 
+    // Set token in HTTP-only cookie
+    res.cookie('token', token, {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === 'production',
+      sameSite: 'strict',
+      maxAge: 24 * 60 * 60 * 1000 // 1 day
+    });
+
     res.status(201).json({
-      token,
       user: {
         id: savedUser._id,
         username: savedUser.username,
@@ -63,8 +117,15 @@ export const login = async (req, res) => {
     // Generate JWT token
     const token = jwt.sign({ id: user._id }, process.env.JWT_SECRET, { expiresIn: '1d' });
 
+    // Set token in HTTP-only cookie
+    res.cookie('token', token, {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === 'production',
+      sameSite: 'strict',
+      maxAge: 24 * 60 * 60 * 1000 // 1 day
+    });
+
     res.json({
-      token,
       user: {
         id: user._id,
         username: user.username,
@@ -74,6 +135,18 @@ export const login = async (req, res) => {
   } catch (error) {
     res.status(500).json({ message: error.message });
   }
+};
+
+// Logout user
+export const logout = (req, res) => {
+  res.cookie('token', '', {
+    httpOnly: true,
+    expires: new Date(0),
+    secure: process.env.NODE_ENV === 'production',
+    sameSite: 'strict'
+  });
+  
+  res.json({ message: 'Logged out successfully' });
 };
 
 // Get user data
